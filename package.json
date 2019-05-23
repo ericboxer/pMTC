@@ -1,0 +1,27 @@
+{
+  "name": "pmtc",
+  "version": "0.1.0",
+  "description": "pMTC",
+  "main": "src/pmtc.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": " node $npm_package_main"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ericboxer/pMTC.git"
+  },
+  "author": "Eric Boxer",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ericboxer/pMTC/issues"
+  },
+  "homepage": "https://github.com/ericboxer/pMTC#readme",
+  "devDependencies": {
+    "jslint": "^0.12.1"
+  },
+  "dependencies": {
+    "boxtoolsjs": "0.0.1",
+    "kindling-logger": "^1.0.2"
+  }
+}
