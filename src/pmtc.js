@@ -5,8 +5,6 @@ const boxtools = require('boxtoolsjs')
 const EventEmitter = require('events')
 
 // F0 7F 7F 01 01 hh mm ss ff F7
-// f0 7f 7f 01 01 61 1d 09 15 f7
-// f0 7f 7f 01 01 80 00 03 15 f7
 
 const mtcPacket = [
   0xf0, // Message Start
@@ -53,7 +51,6 @@ class PMTC extends EventEmitter {
 
     this.conn.on('message', (msg, rinfo) => {
       const buf = Buffer.from(msg)
-      console.log(buf)
       this.parseMessage(buf)
     })
 
