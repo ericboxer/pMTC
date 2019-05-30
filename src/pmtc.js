@@ -4,6 +4,10 @@ const dgram = require('dgram')
 const boxtools = require('boxtoolsjs')
 const EventEmitter = require('events')
 
+// F0 7F 7F 01 01 hh mm ss ff F7
+// f0 7f 7f 01 01 61 1d 09 15 f7
+// f0 7f 7f 01 01 80 00 03 15 f7
+
 const mtcPacket = [
   0xf0, // Message Start
   0x7f, // Universal Message
@@ -49,6 +53,7 @@ class PMTC extends EventEmitter {
 
     this.conn.on('message', (msg, rinfo) => {
       const buf = Buffer.from(msg)
+      console.log(buf)
       this.parseMessage(buf)
     })
 
@@ -133,7 +138,11 @@ class PMTC extends EventEmitter {
    * @memberof PMTC
    */
   _pmtcFrameRateFromHours(hours) {
-    return (hours & 0b11000000) >> 6
+    let x = 0b01100000
+    let y = hours & 0b01100000
+    console.log(x, y)
+    console.log((hours & 0b01100000) >> 5)
+    return (hours & 0b01100000) >> 5
   }
 
   /**
@@ -143,7 +152,7 @@ class PMTC extends EventEmitter {
    * @memberof PMTC
    */
   _pmtcHourFromHours(hours) {
-    return hours - (hours & 0b11000000)
+    return hours - (hours & 0b01100000)
   }
 
   /**
@@ -193,7 +202,7 @@ module.exports = {
 // Simple local testing
 
 if (typeof require != 'undefined' && require.main == module) {
-  const a = new PMTC('', 5555)
+  const a = new PMTC('', 5005)
   a.run()
 
   a.on('timecode', (data) => {
