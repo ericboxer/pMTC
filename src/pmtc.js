@@ -19,13 +19,6 @@ const mtcPacket = [
   0xf7, // EoE message
 ]
 
-// function framerates() {
-//   this.fr24 = 0
-//   this.fr25 = 1
-//   this.fr29 = 2
-//   this.fr30 = 3
-// }
-
 /**
  * Enum for framerate values.
  * @readonly
@@ -137,8 +130,6 @@ class PMTC extends EventEmitter {
   _pmtcFrameRateFromHours(hours) {
     let x = 0b01100000
     let y = hours & 0b01100000
-    console.log(x, y)
-    console.log((hours & 0b01100000) >> 5)
     return (hours & 0b01100000) >> 5
   }
 
@@ -198,11 +189,11 @@ module.exports = {
 
 // Simple local testing
 
-if (typeof require != 'undefined' && require.main == module) {
-  const a = new PMTC('', 5005)
-  a.run()
+// if (typeof require != 'undefined' && require.main == module) {
+//   const a = new PMTC('', 5005)
+//   a.run()
 
-  a.on('timecode', (data) => {
-    console.log(data)
-  })
-}
+//   a.on('timecode', (data) => {
+//     console.log(data)
+//   })
+// }
