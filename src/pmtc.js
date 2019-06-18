@@ -5,7 +5,7 @@
  * @author Eric Boxer <eric@ericboxer.net>
  *
  * Created at     : 2019-05-22 07:43:32
- * Last modified  : 2019-06-08 11:25:12
+ * Last modified  : 2019-06-18 11:10:55
  */
 
 'use strict'
@@ -120,10 +120,11 @@ class PMTC extends EventEmitter {
 
           // Build the return object
           const tcObject = {
-            framerate: framerateTC,
-            json: jsonTC,
-            frame: totalFrames,
-            legacy: [...msg],
+            FRAMERATE: framerateTC,
+            JSON: jsonTC,
+            FRAME: totalFrames,
+            MTC: [...msg],
+            SEQUENCE: Date.now(),
           }
 
           // Send it off to the masses!
