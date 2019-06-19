@@ -42,9 +42,16 @@ const frameratesEnum = {
 }
 
 const transportState = {
-  stopped: 'STOPPED',
-  running: 'RUNNING',
-  freewheel: 'FREEWHEELING',
+  STOPPED: 'STOPPED',
+  RUNNING: 'RUNNING',
+  FREEWHEEL: 'FREEWHEELING',
+}
+
+const messageOrigin = {
+  NONE: 0,
+  HEARTBEAT: 1,
+  FREEWHEEL: 2,
+  UDP: 3,
 }
 
 class PMTC extends EventEmitter {
@@ -63,6 +70,7 @@ class PMTC extends EventEmitter {
     this._heartbeatIntervalMillis = options.heartbeatIntervalMillis || 1000
 
     // Flags
+    this._messageOrigin = messageOrigin.NONE
     this._currentlyFreewheeling = false
     this._hasSetFreewheel = false
     this._isHeartbeat = false
@@ -70,8 +78,9 @@ class PMTC extends EventEmitter {
     // Things that will change dynamically
     this._currentFramerate = 30
     this._freewheelTimeoutTime = 33 // number of milliseconds of without a new frame to realize TC has stopped
-    this._transportState = transportState.stopped
+    this._transportState = transportState.STOPPED
     this._lastTime = Buffer.from(mtcPacket)
+    this._currentTime = Buffer.from(mtcPacket)
     this._tcObject
 
     // Timers
@@ -93,6 +102,30 @@ class PMTC extends EventEmitter {
     } else {
       console.log('framerate is not a number')
     }
+  }
+
+  set transportState(transportState) {
+    this._transportState = transportState
+  }
+  get transportState() {
+    return this._transportState
+  }
+
+  set messageOrigin(messageOrigin) {
+    this._messageOrigin = messageOrigin
+    if (messageOrigin == messageOrigin.FREEWHEEL) {
+      this.transportState = transportState.FREEWHEEL
+    }
+    if (messageOrigin == messageOrigin.UDP) {
+      this.transportState = transportState.RUNNING
+    }
+    if (messageOrigin == messageOrigin.HEARTBEAT) {
+      this.transportState = transportState.STOPPED
+    }
+  }
+
+  get messageOrigin() {
+    return this._messageOrigin
   }
 
   // get and set freewheel status
@@ -146,9 +179,11 @@ class PMTC extends EventEmitter {
       // Chances of it being a timecode message here? Likely.
       if (msg.length == 10 && msg.slice[(0, 3)] == mtcPacket.slice[(0, 3)] && this.freewheel == true) {
         clearInterval(this._freewheelInterval)
-        this.freewheel = false
+        this._resetFreewheel()
+        // this.transportState = transportState.RUNNING
       }
-      this._isHeartbeat = false
+      this.messageOrigin = messageOrigin.UDP
+      // this._isHeartbeat = false
       this.parseMessage(buf)
     })
 
@@ -163,12 +198,18 @@ class PMTC extends EventEmitter {
     this._startHeartbeat()
   }
 
+  _checkTransport() {
+    return Buffer.compare(this._currentTime, this._lastTime) == 0
+  }
+
   _startHeartbeat() {
     if (this._useHearbeat) {
       this._heartbeatInterval = setInterval(() => {
-        if ((this.transportState = transportState.stopped)) {
-          this._isHeartbeat = true
-          this.parseMessage(this._lastTime)
+        if (this._checkTransport() == true && this._currentlyFreewheeling == false) {
+          this.messageOrigin = messageOrigin.HEARTBEAT
+          this.parseMessage(this._currentTime)
+        } else {
+          this._updateCurrentAndLastTime(this._currentTime)
         }
       }, this._heartbeatIntervalMillis)
     }
@@ -195,14 +236,16 @@ class PMTC extends EventEmitter {
   }
 
   parseMessage(msg) {
-    // Chances are good that this is pMTC message. Like seriously. It's pretty darn accurate.
     if (msg.length == 10 && msg.slice[(0, 3)] == mtcPacket.slice[(0, 3)]) {
-      this._lastTime = msg
+      this._updateCurrentAndLastTime(msg)
 
       try {
-        if (this.freewheel == false && this._isHeartbeat == false) {
-          this._transportState = transportState.running
-          clearInterval(this._heartbeatInterval)
+        if (this.messageOrigin == messageOrigin.UDP) {
+          this.transportState = transportState.RUNNING
+        } else if (this.messageOrigin == messageOrigin.HEARTBEAT) {
+          this.transportState = transportState.STOPPED
+        } else if (this.messageOrigin == messageOrigin.FREEWHEEL) {
+          this.transportState = transportState.FREEWHEEL
         }
 
         // lets grab the frame rate, hour, minute, seconds, and frames from the packet
@@ -216,7 +259,6 @@ class PMTC extends EventEmitter {
 
         if (this._mtcOnly) {
           // If all we want to do is send out the information on a multicast or boradcast address... this is where we do it.
-          // this.emit('timecode', msg)
           this._tcObject = msg
         } else {
           // In JSON
@@ -232,32 +274,42 @@ class PMTC extends EventEmitter {
 
           // Build the return object
           this._tcObject = JSON.stringify({
-            TRANSPORT: this._transportState,
+            TRANSPORT: this.transportState,
             FRAMERATE: framerateTC,
             JSON: jsonTC,
             FRAME: totalFrames,
             MTC: [...msg],
             SEQUENCE: Date.now(),
+            ORIGIN: this.messageOrigin,
           })
         }
         // Send it off to the masses!
         this.emit('timecode', this._tcObject)
 
-        // We should check to see if we've set our freewheeling...
-        if (this._useFreewheel == true) {
-          if (this.hasSetFreewheel == false && this.freewheel == false && this._isHeartbeat == false) {
-            this.freewheelTimeoutTime = 1000 / this.currentFramerate + this._freewheelTolerance // sets our freewheel timeout
-            this._startFreewheelcheck(this.freewheelTimeoutTime)
-            this.hasSetFreewheel = true
-          } else if (this.hasSetFreewheel == true && this.freewheel == false) {
-            this._freewheelTimeout.refresh()
-          }
-        }
+        // Freewheel 'em if you got 'em
+        this._freewheel()
       } catch (e) {
         console.log(e)
       }
     } else {
       // Not really doing anything to handle other packet types... because there are none? Maybe hande the quarter frames at some point.
+    }
+  }
+
+  _updateCurrentAndLastTime(currentTimeBuffer) {
+    this._lastTime = this._currentTime
+    this._currentTime = currentTimeBuffer
+  }
+
+  _freewheel() {
+    if (this._useFreewheel == true) {
+      if (this.hasSetFreewheel == false && this.messageOrigin == messageOrigin.UDP) {
+        this.freewheelTimeoutTime = 1000 / this.currentFramerate + this._freewheelTolerance // sets our freewheel timeout
+        this._startFreewheelcheck(this.freewheelTimeoutTime)
+        this.hasSetFreewheel = true
+      } else if (this.hasSetFreewheel == true && this.freewheel == false) {
+        this._freewheelTimeout.refresh()
+      }
     }
   }
 
@@ -334,51 +386,55 @@ class PMTC extends EventEmitter {
 
   _startFreewheel() {
     this.freewheel = true
-    this._transportState = transportState.freewheel
+    // this.transportState = transportState.FREEWHEEL
+    this.messageOrigin = messageOrigin.FREEWHEEL
     let framesRemaining = this.freewheelFrames
     this._freewheelInterval = setInterval(() => {
-      this._updateTime()
+      this._updateTimeViaFreewheel()
       framesRemaining -= 1
       if (framesRemaining == 0) {
-        this.transportState = transportState.stopped
-        this._updateTime()
+        // if (this._useHearbeat == false) {
+        //   this.transportState = transportState.STOPPED
+        // }
+        this._updateTimeViaFreewheel()
         this._resetFreewheel()
       }
     }, 1000 / this.currentFramerate)
   }
 
   _resetFreewheel() {
-    this.freewheel = false
+    this._currentlyFreewheeling = false
     clearInterval(this._freewheelInterval)
     clearTimeout(this._freewheelTimeout)
     this.hasSetFreewheel = false
-    this._transportState = transportState.stopped
-    this._startHeartbeat()
+    // this.transportState = transportState.STOPPED
+    // this._startHeartbeat()
   }
 
-  _updateTime() {
-    this._lastTime[8] += 1
+  _updateTimeViaFreewheel() {
+    this._currentTime[8] += 1
 
     // Frames
-    if (this._lastTime[8] >= this.currentFramerate) {
-      this._lastTime[8] = 0
-      this._lastTime[7] += 1
+    if (this._currentTime[8] >= this.currentFramerate) {
+      this._currentTime[8] = 0
+      this._currentTime[7] += 1
     }
 
     // Seconds
-    if (this._lastTime[7] >= 60) {
-      this._lastTime[7] = 0
-      this._lastTime[6] += 1
+    if (this._currentTime[7] >= 60) {
+      this._currentTime[7] = 0
+      this._currentTime[6] += 1
     }
 
     // Minutes
-    if (this._lastTime[6] >= 60) {
-      this._lastTime[6] = 0
-      this._lastTime[5] += 1
+    if (this._currentTime[6] >= 60) {
+      this._currentTime[6] = 0
+      this._currentTime[5] += 1
     }
 
     // Making some assumptions here that hours probably arent going to rollover.
-    this.parseMessage(this._lastTime)
+    this.messageOrigin = messageOrigin.FREEWHEEL
+    this.parseMessage(this._currentTime)
   }
 }
 
@@ -387,13 +443,12 @@ module.exports = {
 }
 
 // Simple local testing
-
 if (typeof require != 'undefined' && require.main == module) {
   let setupArgs = {
     port: 5005,
     useHeartbeat: true,
     useFreewheel: true,
-    // mtcOnly: true,
+    interfaceAddress: '10.0.1.169',
     heartbeatIntervalMillis: 1000,
   }
 
