@@ -280,7 +280,7 @@ class PMTC extends EventEmitter {
             FRAME: totalFrames,
             MTC: [...msg],
             SEQUENCE: Date.now(),
-            ORIGIN: this.messageOrigin,
+            // ORIGIN: this.messageOrigin,
           })
         }
         // Send it off to the masses!
