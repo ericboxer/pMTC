@@ -15,13 +15,13 @@ npm install pmtc
 ```javascript
 const {PMTC} = require('pmtc')
 
-conset configArgs = {
+const configArgs = {
     interfaceAddress: '',
     port: 5005,
     useFreewheel: true,
 }
 
-const server = new PMTC('',5005) // Listen for pMTC data on all interfaces on port 5005
+const server = new PMTC(configArgs) // Listen for pMTC data on all interfaces on port 5005
 server.run()
 server.on('timecode',(data)=>{
     console.log(data)
