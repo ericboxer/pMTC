@@ -5,7 +5,8 @@
   "main": "src/pmtc.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": " node $npm_package_main"
+    "start": " node $npm_package_main",
+    "dev": "nodemon $npm_package_main"
   },
   "repository": {
     "type": "git",
@@ -18,7 +19,8 @@
   },
   "homepage": "https://github.com/ericboxer/pMTC#readme",
   "devDependencies": {
-    "jslint": "^0.12.1"
+    "jslint": "^0.12.1",
+    "nodemon": "^1.19.1"
   },
   "dependencies": {
     "boxtoolsjs": "0.0.1",
