@@ -68,6 +68,7 @@ class PMTC extends EventEmitter {
     this._freewheelTolerance = options.freewheelTolerance || 5
     this._freewheelFrames = options.freewheelFrames || 30 // Number of frames to freewheel before stopping
     this._heartbeatIntervalMillis = options.heartbeatIntervalMillis || 1000
+    this._readerAutoFramerate = options.readerAutoFramerate || false
 
     // Flags
     this._messageOrigin = messageOrigin.NONE
@@ -96,13 +97,15 @@ class PMTC extends EventEmitter {
     return this._currentFramerate
   }
 
-  set currentFramerate(framerate) {
+  setCurrentFramerate(framerate) {
     if (typeof framerate == 'number') {
       this._currentFramerate = framerate
     } else {
       console.log('framerate is not a number')
     }
   }
+
+  set currentFramerate(framerate) {}
 
   set transportState(transportState) {
     this._transportState = transportState
@@ -177,7 +180,7 @@ class PMTC extends EventEmitter {
       const buf = Buffer.from(msg)
 
       // Chances of it being a timecode message here? Likely.
-      if (msg.length == 10 && msg.slice[(0, 3)] == mtcPacket.slice[(0, 3)] && this.freewheel == true) {
+      if (rinfo.size == 10 && msg.slice[(0, 3)] == mtcPacket.slice[(0, 3)] && this.freewheel == true) {
         clearInterval(this._freewheelInterval)
         this._resetFreewheel()
         // this.transportState = transportState.RUNNING
@@ -254,8 +257,22 @@ class PMTC extends EventEmitter {
         const minutes = msg[6]
         const seconds = msg[7]
         const frames = msg[8]
-        const framerateTC = boxtools.nameFromEnumValue(frameratesEnum, fr)
-        const frDivider = this._pmtcDetermineFrameDivider(framerateTC) // When calculating timecode, what framerate do we need to divide by?
+
+        let framerateTC
+        let frDivider
+
+        console.log(this._readerAutoFramerate === true)
+
+        if (this._readerAutoFramerate === true) {
+          // console.log(this._readerAutoFramerate)
+
+          framerateTC = boxtools.nameFromEnumValue(frameratesEnum, fr)
+          frDivider = this._pmtcDetermineFrameDivider(framerateTC) // When calculating timecode, what framerate do we need to divide by?
+        } else {
+          console.log('manual')
+          framerateTC = `fr${this._currentFramerate}`
+          frDivider = this._currentFramerate
+        }
 
         if (this._mtcOnly) {
           // If all we want to do is send out the information on a multicast or boradcast address... this is where we do it.
@@ -357,7 +374,14 @@ class PMTC extends EventEmitter {
         this.currentFramerate = 30
         return 30
       default:
+        console.log('suck it')
         return 0
+    }
+  }
+
+  _selectFramerateSource(framerateTC) {
+    if (this._readerFramerate != null) {
+      return this.readerFramerate
     }
   }
 
@@ -448,11 +472,14 @@ if (typeof require != 'undefined' && require.main == module) {
     port: 5005,
     useHeartbeat: true,
     useFreewheel: true,
-    interfaceAddress: '10.0.1.169',
+    interfaceAddress: '127.0.0.1',
+    readerAutoFramerate: false,
     heartbeatIntervalMillis: 1000,
+    mtcOnly: true,
   }
 
   const a = new PMTC(setupArgs)
+  a.setCurrentFramerate(29)
   a.run()
 
   a.on('timecode', (data) => {
