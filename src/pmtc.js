@@ -77,7 +77,7 @@ class PMTC extends EventEmitter {
     this._isHeartbeat = false
 
     // Things that will change dynamically
-    this._currentFramerate = object.currentFramerate || 30
+    this._currentFramerate = options.currentFramerate || 30
     this._freewheelTimeoutTime = 33 // number of milliseconds of without a new frame to realize TC has stopped
     this._transportState = transportState.STOPPED
     this._lastTime = Buffer.from(mtcPacket)
