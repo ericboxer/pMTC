@@ -1,6 +1,6 @@
 {
   "name": "pmtc",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "pMTC",
   "main": "src/pmtc.js",
   "scripts": {
