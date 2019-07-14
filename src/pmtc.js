@@ -100,6 +100,7 @@ class PMTC extends EventEmitter {
   setCurrentFramerate(framerate) {
     if (typeof framerate == 'number') {
       this._currentFramerate = framerate
+      console.log('framerate changed')
     } else {
       console.log('framerate is not a number')
     }
