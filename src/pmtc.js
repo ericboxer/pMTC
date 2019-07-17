@@ -263,11 +263,11 @@ class PMTC extends EventEmitter {
         let frDivider
 
         if (this._readerAutoFramerate === true) {
-          console.log('AUTO!')
+          // console.log('AUTO!')
           framerateTC = boxtools.nameFromEnumValue(frameratesEnum, fr)
           frDivider = this._pmtcDetermineFrameDivider(framerateTC) // When calculating timecode, what framerate do we need to divide by?
         } else {
-          console.log('NOT AUTO')
+          // console.log('NOT AUTO')
           framerateTC = `fr${this._currentFramerate}`
           frDivider = this._currentFramerate
         }
