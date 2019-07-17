@@ -263,9 +263,11 @@ class PMTC extends EventEmitter {
         let frDivider
 
         if (this._readerAutoFramerate === true) {
+          console.log('AUTO!')
           framerateTC = boxtools.nameFromEnumValue(frameratesEnum, fr)
           frDivider = this._pmtcDetermineFrameDivider(framerateTC) // When calculating timecode, what framerate do we need to divide by?
         } else {
+          console.log('NOT AUTO')
           framerateTC = `fr${this._currentFramerate}`
           frDivider = this._currentFramerate
         }
@@ -293,7 +295,6 @@ class PMTC extends EventEmitter {
             FRAME: totalFrames,
             MTC: [...msg],
             SEQUENCE: Date.now(),
-            // ORIGIN: this.messageOrigin,
           })
         }
         // Send it off to the masses!
@@ -391,10 +392,22 @@ class PMTC extends EventEmitter {
    * @memberof PMTC
    */
   _pmtcCalculateFrames(hours, minutes, seconds, frames, framerate) {
+    let is29 = false
+    if (framerate == 29) {
+      framerate = 30
+      is29 = true
+    }
     const secondTC = seconds * framerate
     const minutesTC = minutes * 60 * framerate
     const hoursTC = hours * 60 * 60 * framerate
-    return hoursTC + minutesTC + secondTC + frames
+
+    let returnFrame = hoursTC + minutesTC + secondTC + frames
+
+    if (is29 != true) {
+      return returnFrame
+    } else {
+      return (returnFrame * 1.001).toFixed(0)
+    }
   }
 
   _startFreewheelcheck(timeoutTime) {
@@ -465,12 +478,13 @@ module.exports = {
 if (typeof require != 'undefined' && require.main == module) {
   let setupArgs = {
     port: 5005,
-    useHeartbeat: true,
-    useFreewheel: true,
+    useHeartbeat: false,
+    useFreewheel: false,
     interfaceAddress: '127.0.0.1',
     readerAutoFramerate: false,
     heartbeatIntervalMillis: 1000,
-    mtcOnly: true,
+    currentFramerate: 29,
+    mtcOnly: false,
   }
 
   const a = new PMTC(setupArgs)
