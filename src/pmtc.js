@@ -207,7 +207,8 @@ class PMTC extends EventEmitter {
     })
 
     this.conn.on('listening', () => {
-      console.log(`Listening on port ${this.port}`)
+      this.emit('info', `Timecode listening on port ${this.port}`)
+      // console.log(`Listening on port ${this.port}`)
     })
 
     this.conn.on('error', (err) => {
@@ -222,20 +223,21 @@ class PMTC extends EventEmitter {
   }
 
   _startHeartbeat() {
-    if (this._useHeartbeat) {
-      this._heartbeatInterval = setInterval(() => {
+    this._heartbeatInterval = setInterval(() => {
+      if (this._useHeartbeat) {
         if (this._checkTransport() == true && this._currentlyFreewheeling == false) {
           this.messageOrigin = messageOrigin.HEARTBEAT
           this.parseMessage(this._currentTime)
         } else {
           this._updateCurrentAndLastTime(this._currentTime)
         }
-      }, this._heartbeatIntervalMillis)
-    }
+      }
+    }, this._heartbeatIntervalMillis)
   }
 
   _stopHeartbeat() {
-    clearInterval(this._useHeartbeat)
+    console.log('run')
+    clearInterval(this._useHeartbeatInterval)
   }
 
   stop() {
@@ -513,4 +515,12 @@ if (typeof require != 'undefined' && require.main == module) {
   a.on('timecode', (data) => {
     console.log(data)
   })
+  setTimeout(() => {
+    a.useHeartbeat = true
+  }, 1000)
+
+  setTimeout(() => {
+    a.useHeartbeat = false
+    // clearInterval(a._useHe÷artbeatInterval)
+  }, 3000)
 }
