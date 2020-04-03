@@ -62,7 +62,7 @@ class PMTC extends EventEmitter {
     this.address = options.interfaceAddress || ''
     this.port = options.port || 5005
     this._mtcOnly = options.mtcOnly || false
-    this._useHearbeat = options.useHeartbeat || false
+    this._useHeartbeat = options.useHeartbeat || false
     this._useFreewheel = options.useFreewheel || false
     this._useSequenceNumber = options.useSequenceNumber || false
     this._freewheelTolerance = options.freewheelTolerance || 5
@@ -95,6 +95,18 @@ class PMTC extends EventEmitter {
 
   get currentFramerate() {
     return this._currentFramerate
+  }
+
+  get useHeartbeat() {
+    return this._useHeartbeat
+  }
+
+  set useHeartbeat(shouldUseHeartbeat) {
+    if (typeof shouldUseHeartbeat == 'boolean') {
+      this._stopHeartbeat()
+      this._useHeartbeat = shouldUseHeartbeat
+      this._startHeartbeat()
+    }
   }
 
   setCurrentFramerate(framerate) {
@@ -208,7 +220,7 @@ class PMTC extends EventEmitter {
   }
 
   _startHeartbeat() {
-    if (this._useHearbeat) {
+    if (this._useHeartbeat) {
       this._heartbeatInterval = setInterval(() => {
         if (this._checkTransport() == true && this._currentlyFreewheeling == false) {
           this.messageOrigin = messageOrigin.HEARTBEAT
@@ -218,6 +230,10 @@ class PMTC extends EventEmitter {
         }
       }, this._heartbeatIntervalMillis)
     }
+  }
+
+  _stopHeartbeat() {
+    clearInterval(this._useHeartbeat)
   }
 
   stop() {
