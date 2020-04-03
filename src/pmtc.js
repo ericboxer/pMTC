@@ -236,7 +236,6 @@ class PMTC extends EventEmitter {
   }
 
   _stopHeartbeat() {
-    console.log('run')
     clearInterval(this._useHeartbeatInterval)
   }
 
