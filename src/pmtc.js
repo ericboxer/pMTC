@@ -105,7 +105,9 @@ class PMTC extends EventEmitter {
     if (typeof shouldUseHeartbeat == 'boolean') {
       this._stopHeartbeat()
       this._useHeartbeat = shouldUseHeartbeat
-      this._startHeartbeat()
+      if (shouldUseHeartbeat == true) {
+        this._startHeartbeat()
+      }
     }
   }
 
