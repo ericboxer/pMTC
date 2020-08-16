@@ -1,6 +1,6 @@
 {
   "name": "pmtc",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "pMTC",
   "main": "dist/pmtc.js",
   "scripts": {
