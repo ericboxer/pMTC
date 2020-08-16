@@ -2,11 +2,13 @@
   "name": "pmtc",
   "version": "0.8.3",
   "description": "pMTC",
-  "main": "src/pmtc.js",
+  "main": "dist/pmtc.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": " node $npm_package_main",
-    "dev": "nodemon $npm_package_main"
+    "prestart": "yarn tsc",
+    "start": "node $npm_package_main",
+    "dev": "nodemon $npm_package_main",
+    "tsc": "tsc"
   },
   "repository": {
     "type": "git",
@@ -19,14 +21,17 @@
   },
   "homepage": "https://github.com/ericboxer/pMTC#readme",
   "devDependencies": {
-    "jslint": "^0.12.1",
+    "@types/node": "^14.0.27",
+    "@types/typescript": "^2.0.0",
     "nodemon": "^1.19.1"
   },
   "dependencies": {
     "boxtoolsjs": "0.0.1",
-    "kindling-logger": "^1.0.2"
+    "kindling-logger": "^1.0.2",
+    "typescript": "^3.9.7"
   },
   "files": [
-    "src/pmtc.js"
+    "dist/pmtc.js",
+    "dist/pmtc.d.ts"
   ]
 }
