@@ -26,21 +26,22 @@ An easy to use reader for full frame (SysEx) Midi Timecode
 yarn install pmtc
 ```
 
-## Ussage
+## Usage
 
 ```javascript
-const {PMTC} = require('pmtc')
+const { PMTC } = require('pmtc')
 
-conset configArgs = {
-    interfaceAddress: '',
-    port: 5005,
-    useFreewheel: true,
+const configArgs = {
+  // Listen for pMTC data on all interfaces on port 5005
+  interfaceAddress: '',
+  port: 5005,
+  useFreewheel: true,
 }
 
-const server = new PMTC('',5005) // Listen for pMTC data on all interfaces on port 5005
+const server = new PMTC(configArgs)
 server.run()
-server.on('timecode',(data)=>{
-    console.log(data)
+server.on('timecode', (data) => {
+  console.log(data)
 })
 ```
 
