@@ -533,31 +533,31 @@ module.exports = {
   PMTC,
 }
 
-// Simple local testing
-if (typeof require != 'undefined' && require.main == module) {
-  let setupArgs: PMTCOptions = {
-    port: 5005,
-    useHeartbeat: false,
-    useFreewheel: false,
-    interfaceAddress: '127.0.0.1',
-    readerAutoFramerate: false,
-    heartbeatIntervalMillis: 1000,
-    currentFramerate: 29,
-    mtcOnly: false,
-  }
+// // Simple local testing
+// if (typeof require != 'undefined' && require.main == module) {
+//   let setupArgs: PMTCOptions = {
+//     port: 5005,
+//     useHeartbeat: false,
+//     useFreewheel: false,
+//     interfaceAddress: '127.0.0.1',
+//     readerAutoFramerate: false,
+//     heartbeatIntervalMillis: 1000,
+//     currentFramerate: 29,
+//     mtcOnly: false,
+//   }
 
-  const a = new PMTC(setupArgs)
-  a.setCurrentFramerate(29)
-  a.run()
+//   const a = new PMTC(setupArgs)
+//   a.setCurrentFramerate(29)
+//   a.run()
 
-  a.on('timecode', (data) => {
-    console.log(data)
-  })
-  setTimeout(() => {
-    a.useHeartbeat = true
-  }, 1000)
+//   a.on('timecode', (data) => {
+//     console.log(data)
+//   })
+//   setTimeout(() => {
+//     a.useHeartbeat = true
+//   }, 1000)
 
-  setTimeout(() => {
-    a.useHeartbeat = false
-  }, 3000)
-}
+//   setTimeout(() => {
+//     a.useHeartbeat = false
+//   }, 3000)
+// }
