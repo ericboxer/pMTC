@@ -8,11 +8,10 @@
  * Last modified  : 2019-06-18 22:10:11
  */
 
-'use strict'
-
-const dgram = require('dgram')
-const boxtools = require('boxtoolsjs')
-const EventEmitter = require('events')
+import dgram, { Socket } from 'dgram'
+//TODO: remove when tested
+// import boxtools from 'boxtoolsjs' /* Not needed anymore... leaving here for testing*/
+import { EventEmitter } from 'events'
 
 // F0 7F 7F 01 01 hh mm ss ff F7
 
@@ -30,35 +29,84 @@ const mtcPacket = [
 ]
 
 /**
- * Enum for framerate values.
- * @readonly
+ * @description An enum describing the different supported framerates
+ * @export
  * @enum {number}
  */
-const frameratesEnum = {
-  fr24: 0,
-  fr25: 1,
-  fr29: 2,
-  fr30: 3,
+export enum Framerates {
+  fr24 = 0,
+  fr25,
+  fr29,
+  fr30,
 }
 
-const transportState = {
-  STOPPED: 'STOPPED',
-  RUNNING: 'RUNNING',
-  FREEWHEEL: 'FREEWHEELING',
+export import frameratesEnum = Framerates /* Type alias for older legacy support */
+
+export enum TransportState {
+  STOPPED = 'STOPPED',
+  RUNNING = 'RUNNING',
+  FREEWHEEL = 'FREEWHEEL',
 }
 
-const messageOrigin = {
-  NONE: 0,
-  HEARTBEAT: 1,
-  FREEWHEEL: 2,
-  UDP: 3,
+export import transportState = TransportState /* Type alias for older legacy support */
+
+enum MessageOrigin {
+  NONE = 0,
+  HEARTBEAT = 1,
+  FREEWHEEL = 2,
+  UDP = 3,
 }
 
-class PMTC extends EventEmitter {
-  constructor(options) {
+import messageOrigin = MessageOrigin /* Type alias for older legacy support */
+import { type } from 'os'
+
+export interface PMTCOptions {
+  interfaceAddress: string
+  port: number
+  mtcOnly: boolean
+  useHeartbeat: boolean
+  useFreewheel: boolean
+  useSequenceNumber?: boolean
+  freewheelTolerance?: number
+  freewheelFrames?: number
+  heartbeatIntervalMillis: number
+  readerAutoFramerate: boolean
+  currentFramerate: number
+}
+
+export class PMTC extends EventEmitter {
+  address: string
+  port: number
+  conn: Socket
+  private _mtcOnly: boolean
+  private _useHeartbeat: boolean
+  private _useFreewheel: boolean
+  private _useSequenceNumber: boolean
+  private _freewheelTolerance: number
+  private _freewheelFrames: number
+  private _heartbeatIntervalMillis: number
+  private _readerAutoFramerate: boolean
+
+  private _messageOrigin: MessageOrigin
+  private _currentlyFreewheeling: boolean
+  private _hasSetFreewheel: boolean
+  private _isHeartbeat: boolean
+
+  private _currentFramerate: number
+  private _freewheelTimeoutTime: number
+  private _transportState: TransportState
+  private _lastTime: Buffer
+  private _currentTime: Buffer
+
+  //TODO: Make an interface for this
+  private _tcObject: any
+
+  private _freewheelTimeout!: NodeJS.Timeout
+  private _freewheelInterval!: NodeJS.Timeout
+  private _heartbeatInterval!: NodeJS.Timeout
+
+  constructor(options: PMTCOptions) {
     super()
-
-    // User configurable settings
     this.address = options.interfaceAddress || ''
     this.port = options.port || 5005
     this._mtcOnly = options.mtcOnly || false
@@ -71,7 +119,7 @@ class PMTC extends EventEmitter {
     this._readerAutoFramerate = options.readerAutoFramerate || false
 
     // Flags
-    this._messageOrigin = messageOrigin.NONE
+    this._messageOrigin = MessageOrigin.NONE
     this._currentlyFreewheeling = false
     this._hasSetFreewheel = false
     this._isHeartbeat = false
@@ -79,7 +127,7 @@ class PMTC extends EventEmitter {
     // Things that will change dynamically
     this._currentFramerate = options.currentFramerate || 30
     this._freewheelTimeoutTime = 33 // number of milliseconds of without a new frame to realize TC has stopped
-    this._transportState = transportState.STOPPED
+    this._transportState = TransportState.STOPPED
     this._lastTime = Buffer.from(mtcPacket)
     this._currentTime = Buffer.from(mtcPacket)
     this._tcObject
@@ -111,7 +159,7 @@ class PMTC extends EventEmitter {
     }
   }
 
-  setCurrentFramerate(framerate) {
+  setCurrentFramerate(framerate: number) {
     if (typeof framerate == 'number') {
       this._currentFramerate = framerate
       //TODO: emit framerate change
@@ -123,22 +171,22 @@ class PMTC extends EventEmitter {
 
   set currentFramerate(framerate) {}
 
-  set transportState(transportState) {
+  set transportState(transportState: TransportState) {
     this._transportState = transportState
   }
   get transportState() {
     return this._transportState
   }
 
-  set messageOrigin(messageOrigin) {
+  set messageOrigin(messageOrigin: MessageOrigin) {
     this._messageOrigin = messageOrigin
-    if (messageOrigin == messageOrigin.FREEWHEEL) {
+    if (messageOrigin == MessageOrigin.FREEWHEEL) {
       this.transportState = transportState.FREEWHEEL
     }
-    if (messageOrigin == messageOrigin.UDP) {
+    if (messageOrigin == MessageOrigin.UDP) {
       this.transportState = transportState.RUNNING
     }
-    if (messageOrigin == messageOrigin.HEARTBEAT) {
+    if (messageOrigin == MessageOrigin.HEARTBEAT) {
       this.transportState = transportState.STOPPED
     }
   }
@@ -196,7 +244,7 @@ class PMTC extends EventEmitter {
       const buf = Buffer.from(msg)
 
       // Chances of it being a timecode message here? Likely.
-      if (rinfo.size == 10 && msg.slice[(0, 3)] == mtcPacket.slice[(0, 3)] && this.freewheel == true) {
+      if (rinfo.size == 10 && _compareArray([...msg.slice(0, 3)], [...mtcPacket.slice(0, 3)]) && this.freewheel == true) {
         clearInterval(this._freewheelInterval)
         this._resetFreewheel()
         // this.transportState = transportState.RUNNING
@@ -236,40 +284,42 @@ class PMTC extends EventEmitter {
   }
 
   _stopHeartbeat() {
-    clearInterval(this._useHeartbeatInterval)
+    clearInterval(this._heartbeatInterval)
   }
 
   stop() {
     this.conn.close()
   }
 
-  setInterface(ipAddress) {
-    this.ipAddress = ipAddress
+  setInterface(ipAddress: string) {
+    this.address = ipAddress
+    // this.ipAddress = ipAddress
   }
 
-  setPort(portNumber) {
+  setPort(portNumber: number) {
     this.port = portNumber
   }
 
   getIpAddress() {
-    return this.ipAddress
+    return this.address
+    // return this.ipAddress
   }
 
   getPort() {
     return this.port
   }
 
-  parseMessage(msg) {
-    if (msg.length == 10 && msg.slice[(0, 3)] == mtcPacket.slice[(0, 3)]) {
+  parseMessage(msg: Buffer) {
+    if (msg.length == 10 && _compareArray([...msg.slice(0, 3)], [...mtcPacket.slice(0, 3)])) {
       this._updateCurrentAndLastTime(msg)
 
       try {
-        if (this.messageOrigin == messageOrigin.UDP) {
-          this.transportState = transportState.RUNNING
-        } else if (this.messageOrigin == messageOrigin.HEARTBEAT) {
-          this.transportState = transportState.STOPPED
-        } else if (this.messageOrigin == messageOrigin.FREEWHEEL) {
-          this.transportState = transportState.FREEWHEEL
+        if (this.messageOrigin == MessageOrigin.UDP) {
+          this.transportState = TransportState.RUNNING
+        } else if (this.messageOrigin == MessageOrigin.HEARTBEAT) {
+          this.transportState = TransportState.STOPPED
+        } else if (this.messageOrigin == MessageOrigin.FREEWHEEL) {
+          this.transportState = TransportState.FREEWHEEL
         }
 
         // lets grab the frame rate, hour, minute, seconds, and frames from the packet
@@ -284,10 +334,10 @@ class PMTC extends EventEmitter {
 
         if (this._readerAutoFramerate === true) {
           // console.log('AUTO!')
-          framerateTC = boxtools.nameFromEnumValue(frameratesEnum, fr)
+          framerateTC = Framerates[fr]
+          // framerateTC = boxtools.nameFromEnumValue(frameratesEnum, fr) /* Leaving this here to make sure it all still works */
           frDivider = this._pmtcDetermineFrameDivider(framerateTC) // When calculating timecode, what framerate do we need to divide by?
         } else {
-          // console.log('NOT AUTO')
           framerateTC = `fr${this._currentFramerate}`
           frDivider = this._currentFramerate
         }
@@ -330,12 +380,12 @@ class PMTC extends EventEmitter {
     }
   }
 
-  _updateCurrentAndLastTime(currentTimeBuffer) {
+  private _updateCurrentAndLastTime(currentTimeBuffer: Buffer) {
     this._lastTime = this._currentTime
     this._currentTime = currentTimeBuffer
   }
 
-  _freewheel() {
+  private _freewheel() {
     if (this._useFreewheel == true) {
       if (this.hasSetFreewheel == false && this.messageOrigin == messageOrigin.UDP) {
         this.freewheelTimeoutTime = 1000 / this.currentFramerate + this._freewheelTolerance // sets our freewheel timeout
@@ -353,7 +403,7 @@ class PMTC extends EventEmitter {
    * @returns int
    * @memberof PMTC
    */
-  _pmtcFrameRateFromHours(hours) {
+  private _pmtcFrameRateFromHours(hours: number) {
     let x = 0b01100000
     let y = hours & 0b01100000
     return (hours & 0b01100000) >> 5
@@ -365,7 +415,7 @@ class PMTC extends EventEmitter {
    * @returns int
    * @memberof PMTC
    */
-  _pmtcHourFromHours(hours) {
+  private _pmtcHourFromHours(hours: number) {
     return hours - (hours & 0b01100000)
   }
 
@@ -376,7 +426,7 @@ class PMTC extends EventEmitter {
    * @memberof PMTC
    */
   // TODO: Return an error in default case
-  _pmtcDetermineFrameDivider(framerateTC) {
+  private _pmtcDetermineFrameDivider(framerateTC: string) {
     switch (framerateTC) {
       case 'fr24':
         this.currentFramerate = 24
@@ -395,23 +445,7 @@ class PMTC extends EventEmitter {
     }
   }
 
-  _selectFramerateSource(framerateTC) {
-    if (this._readerFramerate != null) {
-      return this.readerFramerate
-    }
-  }
-
-  /**
-   * @description Returns the frame number based on the current time and framerate.
-   * @param {number} hours
-   * @param {number} minutes
-   * @param {number} seconds
-   * @param {number} frames
-   * @param {frameratesEnum} framerate
-   * @returns number
-   * @memberof PMTC
-   */
-  _pmtcCalculateFrames(hours, minutes, seconds, frames, framerate) {
+  private _pmtcCalculateFrames(hours: number, minutes: number, seconds: number, frames: number, framerate: Framerates) {
     let is29 = false
     if (framerate == 29) {
       framerate = 30
@@ -430,37 +464,31 @@ class PMTC extends EventEmitter {
     }
   }
 
-  _startFreewheelcheck(timeoutTime) {
+  private _startFreewheelcheck(timeoutTime: number) {
     this._freewheelTimeout = setTimeout(() => {
       this._startFreewheel()
     }, timeoutTime)
   }
 
-  _startFreewheel() {
+  private _startFreewheel() {
     this.freewheel = true
-    // this.transportState = transportState.FREEWHEEL
     this.messageOrigin = messageOrigin.FREEWHEEL
     let framesRemaining = this.freewheelFrames
     this._freewheelInterval = setInterval(() => {
       this._updateTimeViaFreewheel()
       framesRemaining -= 1
       if (framesRemaining == 0) {
-        // if (this._useHearbeat == false) {
-        //   this.transportState = transportState.STOPPED
-        // }
         this._updateTimeViaFreewheel()
         this._resetFreewheel()
       }
     }, 1000 / this.currentFramerate)
   }
 
-  _resetFreewheel() {
+  private _resetFreewheel() {
     this._currentlyFreewheeling = false
     clearInterval(this._freewheelInterval)
     clearTimeout(this._freewheelTimeout)
     this.hasSetFreewheel = false
-    // this.transportState = transportState.STOPPED
-    // this._startHeartbeat()
   }
 
   _updateTimeViaFreewheel() {
@@ -490,13 +518,24 @@ class PMTC extends EventEmitter {
   }
 }
 
+function _compareArray<T>(array1: T[], array2: T[]): boolean {
+  if (array1.length == array2.length) {
+    for (const val in array1) {
+      if (array1[val] != array2[val]) {
+        return false
+      }
+    }
+  }
+  return true
+}
+
 module.exports = {
   PMTC,
 }
 
 // Simple local testing
 if (typeof require != 'undefined' && require.main == module) {
-  let setupArgs = {
+  let setupArgs: PMTCOptions = {
     port: 5005,
     useHeartbeat: false,
     useFreewheel: false,
@@ -520,6 +559,5 @@ if (typeof require != 'undefined' && require.main == module) {
 
   setTimeout(() => {
     a.useHeartbeat = false
-    // clearInterval(a._useHe÷artbeatInterval)
   }, 3000)
 }
